@@ -1,5 +1,11 @@
 # 🚀 EDL Starter - Code de Démarrage
 
+
+![Backend Tests](https://github.com/mathisdelehouzee/edl-starter/actions/workflows/backend.yml/badge.svg)
+![Frontend Tests](https://github.com/mathisdelehouzee/edl-starter/actions/workflows/frontend.yml/badge.svg)
+![CI Pipeline](https://github.com/mathisdelehouzee/edl-starter/actions/workflows/ci-pipeline.yml/badge.svg)
+
+
 Bienvenue dans le code de démarrage pour les ateliers d'Environnement de Développement Logiciel (EDL) !
 
 ## 📦 Contenu
