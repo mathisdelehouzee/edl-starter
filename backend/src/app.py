@@ -3,16 +3,18 @@ TaskFlow Backend - FastAPI Task Management Service
 
 A RESTful API for task management with TDD approach.
 
-TP 1 & 2: Uses in-memory storage for simplicity
-TP 3: Will introduce PostgreSQL database (see migration guide)
+ATELIER 1 & 2: Uses in-memory storage for simplicity
+ATELIER 3: Will introduce PostgreSQL database (see migration guide)
 """
 
 from typing import List, Optional, Dict
 from datetime import datetime
 from enum import Enum
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import logging
+import os
 
 # Configure logging
 logging.basicConfig(
@@ -103,6 +105,25 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# =============================================================================
+# CORS CONFIGURATION (ATELIER 3 - Production)
+# =============================================================================
+
+# Get CORS origins from environment variable
+# Default: localhost for development
+cors_origins_str = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000")
+cors_origins = [origin.strip() for origin in cors_origins_str.split(",")]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,  # Allowed origins (frontend URLs)
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, PUT, DELETE, etc.)
+    allow_headers=["*"],  # Allow all headers
+)
+
+logger.info(f"🌐 CORS enabled for origins: {cors_origins}")
 
 
 @app.on_event("startup")
@@ -206,57 +227,45 @@ async def create_task(task_data: TaskCreate) -> Task:
 
 @app.put("/tasks/{task_id}", response_model=Task)
 async def update_task(task_id: int, updates: TaskUpdate) -> Task:
-    """
-    Update an existing task (partial update supported).
+    """Update an existing task (partial update supported)."""
+    if task_id not in tasks_db:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
 
-    TODO (Atelier 1 - Exercice 2): Implémenter cette fonction
+    # Get existing task
+    existing_task = tasks_db[task_id]
 
-    Étapes à suivre:
-    1. Vérifier que la tâche existe dans tasks_db
-       - Si elle n'existe pas, lever HTTPException(status_code=404, detail=f"Task {task_id} not found")
+    # Update only provided fields
+    update_data = updates.model_dump(exclude_unset=True)
 
-    2. Récupérer la tâche existante
+    # Validate title if provided
+    if "title" in update_data and not update_data["title"].strip():
+        raise HTTPException(status_code=422, detail="Title cannot be empty")
 
-    3. Extraire les champs à mettre à jour avec updates.model_dump(exclude_unset=True)
+    # Create updated task with only changed fields
+    updated_task = Task(
+        id=task_id,
+        title=update_data.get("title", existing_task.title),
+        description=update_data.get("description", existing_task.description),
+        status=update_data.get("status", existing_task.status),
+        priority=update_data.get("priority", existing_task.priority),
+        assignee=update_data.get("assignee", existing_task.assignee),
+        due_date=update_data.get("due_date", existing_task.due_date),
+        created_at=existing_task.created_at,
+        updated_at=datetime.utcnow()
+    )
 
-    4. Valider le titre s'il est fourni (ne doit pas être vide)
-       - Si vide, lever HTTPException(status_code=422, detail="Title cannot be empty")
-
-    5. Créer une nouvelle Task avec:
-       - Les champs mis à jour (utiliser update_data.get("field", existing_task.field))
-       - created_at = existing_task.created_at (ne change pas)
-       - updated_at = datetime.utcnow() (nouvelle date)
-
-    6. Mettre à jour tasks_db[task_id]
-
-    7. Retourner la tâche mise à jour
-
-    Indice: Regardez comment create_task fonctionne pour vous inspirer
-    """
-    # TODO: Votre code ici
-    raise HTTPException(status_code=501, detail="Update not implemented yet - complete this function!")
+    tasks_db[task_id] = updated_task
+    return updated_task
 
 
 @app.delete("/tasks/{task_id}", status_code=204)
 async def delete_task(task_id: int):
-    """
-    Delete a task by ID.
+    """Delete a task by ID."""
+    if task_id not in tasks_db:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
 
-    TODO (Atelier 1 - Exercice 1): Implémenter cette fonction
-
-    Étapes à suivre:
-    1. Vérifier que la tâche existe dans tasks_db
-       - Si elle n'existe pas, lever HTTPException(status_code=404, detail=f"Task {task_id} not found")
-
-    2. Supprimer la tâche du dictionnaire tasks_db
-       - Utiliser: del tasks_db[task_id]
-
-    3. Retourner None (car status_code=204 n'a pas de body)
-
-    Indice: C'est très simple, seulement 3 lignes de code !
-    """
-    # TODO: Votre code ici
-    raise HTTPException(status_code=501, detail="Delete not implemented yet - complete this function!")
+    del tasks_db[task_id]
+    return None
 
 
 if __name__ == "__main__":

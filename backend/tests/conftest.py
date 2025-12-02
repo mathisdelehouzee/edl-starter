@@ -3,6 +3,16 @@ from fastapi.testclient import TestClient
 from src.app import app, clear_tasks
 
 
+def pytest_configure(config):
+    """
+    Configure custom pytest markers.
+    """
+    config.addinivalue_line(
+        "markers",
+        "e2e: mark test as end-to-end test (slow, integration test)"
+    )
+
+
 @pytest.fixture(autouse=True)
 def clean_tasks():
     """
@@ -26,12 +36,3 @@ def client():
     """
     with TestClient(app) as test_client:
         yield test_client
-
-
-def pytest_configure(config):
-    """Enregistre les markers personnalisés"""
-    config.addinivalue_line(
-    "markers",
-    "e2e: mark test as end-to-end test (slow)"
-    )
-
